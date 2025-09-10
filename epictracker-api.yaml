@@ -1,0 +1,702 @@
+openapi: 3.0.0
+info:
+  title: EpicTracker API
+  description: API for EpicTracker - Pediatric Disease Prediction and Medical Consultation Platform
+  version: 1.0.0
+  contact:
+    name: EpicTracker Team
+    email: api@epictracker.cm
+servers:
+  - url: https://example.com/api
+    description: Production server
+  - url: http://localhost:3000/api
+    description: Development server
+
+paths:
+  # Authentication endpoints
+  /auth/register:
+    post:
+      summary: Register a new user
+      tags: [Authentication]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  minLength: 6
+                full_name:
+                  type: string
+                role:
+                  type: string
+                  enum: [parent, doctor]
+                phone:
+                  type: string
+      responses:
+        201:
+          description: User registered successfully
+        400:
+          description: Invalid input data
+
+  /auth/login:
+    post:
+      summary: Authenticate user
+      tags: [Authentication]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+      responses:
+        200:
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token:
+                    type: string
+                  user:
+                    $ref: '#/components/schemas/User'
+
+  # Children management
+  /children:
+    get:
+      summary: Get user's children
+      tags: [Children]
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: List of children
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Child'
+
+    post:
+      summary: Add a new child
+      tags: [Children]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChildInput'
+      responses:
+        201:
+          description: Child created successfully
+
+  /children/{id}:
+    put:
+      summary: Update child information
+      tags: [Children]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChildInput'
+      responses:
+        200:
+          description: Child updated successfully
+
+    delete:
+      summary: Delete a child
+      tags: [Children]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        204:
+          description: Child deleted successfully
+
+  # Disease prediction
+  /prediction:
+    post:
+      summary: Create a disease prediction
+      tags: [Prediction]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                child_id:
+                  type: string
+                symptoms:
+                  type: array
+                  items:
+                    type: string
+                additional_info:
+                  type: object
+      responses:
+        200:
+          description: Prediction generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Prediction'
+
+  /predictions:
+    get:
+      summary: Get user's predictions
+      tags: [Prediction]
+      security:
+        - bearerAuth: []
+      responses:
+        200:
+          description: List of predictions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Prediction'
+
+  # Doctors
+  /doctors:
+    get:
+      summary: Get available doctors
+      tags: [Doctors]
+      parameters:
+        - name: specialization
+          in: query
+          schema:
+            type: string
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        200:
+          description: List of doctors
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Doctor'
+
+  # Appointments
+  /appointments:
+    get:
+      summary: Get user's appointments
+      tags: [Appointments]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [scheduled, ongoing, completed, cancelled]
+      responses:
+        200:
+          description: List of appointments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Appointment'
+
+    post:
+      summary: Book an appointment
+      tags: [Appointments]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                doctor_id:
+                  type: string
+                child_id:
+                  type: string
+                appointment_date:
+                  type: string
+                  format: date-time
+                duration_minutes:
+                  type: integer
+      responses:
+        201:
+          description: Appointment booked successfully
+
+  /appointments/{id}:
+    patch:
+      summary: Update appointment status
+      tags: [Appointments]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum: [scheduled, ongoing, completed, cancelled]
+                notes:
+                  type: string
+      responses:
+        200:
+          description: Appointment updated successfully
+
+  # Payments
+  /payments:
+    post:
+      summary: Process payment
+      tags: [Payments]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                appointment_id:
+                  type: string
+                amount:
+                  type: number
+                payment_method:
+                  type: string
+                  enum: [paystack, cinetpay]
+                currency:
+                  type: string
+                  default: XAF
+      responses:
+        200:
+          description: Payment processed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Payment'
+
+  # Messages
+  /messages:
+    get:
+      summary: Get user's messages
+      tags: [Messages]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: conversation_id
+          in: query
+          schema:
+            type: string
+      responses:
+        200:
+          description: List of messages
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Message'
+
+    post:
+      summary: Send a message
+      tags: [Messages]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                recipient_id:
+                  type: string
+                content:
+                  type: string
+                message_type:
+                  type: string
+                  enum: [text, file, gif, sticker]
+                file_url:
+                  type: string
+      responses:
+        201:
+          description: Message sent successfully
+
+  # Symptoms and Diseases
+  /symptoms:
+    get:
+      summary: Get available symptoms
+      tags: [Medical Data]
+      responses:
+        200:
+          description: List of symptoms
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Symptom'
+
+  /diseases:
+    get:
+      summary: Get diseases information
+      tags: [Medical Data]
+      responses:
+        200:
+          description: List of diseases
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Disease'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+        full_name:
+          type: string
+        role:
+          type: string
+          enum: [parent, doctor, admin]
+        phone:
+          type: string
+        avatar_url:
+          type: string
+        location:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    Child:
+      type: object
+      properties:
+        id:
+          type: string
+        parent_id:
+          type: string
+        name:
+          type: string
+        date_of_birth:
+          type: string
+          format: date
+        gender:
+          type: string
+          enum: [male, female]
+        blood_type:
+          type: string
+        allergies:
+          type: array
+          items:
+            type: string
+        medical_history:
+          type: string
+        weight:
+          type: number
+        height:
+          type: number
+        avatar_url:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    ChildInput:
+      type: object
+      required:
+        - name
+        - date_of_birth
+        - gender
+      properties:
+        name:
+          type: string
+        date_of_birth:
+          type: string
+          format: date
+        gender:
+          type: string
+          enum: [male, female]
+        blood_type:
+          type: string
+        allergies:
+          type: array
+          items:
+            type: string
+        medical_history:
+          type: string
+        weight:
+          type: number
+        height:
+          type: number
+
+    Doctor:
+      type: object
+      properties:
+        id:
+          type: string
+        license_number:
+          type: string
+        specialization:
+          type: array
+          items:
+            type: string
+        experience_years:
+          type: integer
+        consultation_fee:
+          type: number
+        verified:
+          type: boolean
+        rating:
+          type: number
+        total_consultations:
+          type: integer
+        bio:
+          type: string
+        languages:
+          type: array
+          items:
+            type: string
+        profile:
+          $ref: '#/components/schemas/User'
+
+    Prediction:
+      type: object
+      properties:
+        id:
+          type: string
+        child_id:
+          type: string
+        parent_id:
+          type: string
+        symptoms_reported:
+          type: object
+        predicted_disease_id:
+          type: string
+        confidence_score:
+          type: number
+        status:
+          type: string
+          enum: [pending, completed, confirmed, disputed]
+        medical_report_url:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        disease:
+          $ref: '#/components/schemas/Disease'
+        child:
+          $ref: '#/components/schemas/Child'
+
+    Disease:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+        severity_level:
+          type: string
+          enum: [mild, moderate, severe, critical]
+        common_age_range:
+          type: string
+        prevention_methods:
+          type: array
+          items:
+            type: string
+        natural_treatments:
+          type: array
+          items:
+            type: string
+        medical_treatments:
+          type: array
+          items:
+            type: string
+        minsante_approved:
+          type: boolean
+
+    Symptom:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        category:
+          type: string
+        severity_indicators:
+          type: array
+          items:
+            type: string
+
+    Appointment:
+      type: object
+      properties:
+        id:
+          type: string
+        parent_id:
+          type: string
+        doctor_id:
+          type: string
+        child_id:
+          type: string
+        prediction_id:
+          type: string
+        appointment_date:
+          type: string
+          format: date-time
+        duration_minutes:
+          type: integer
+        consultation_fee:
+          type: number
+        status:
+          type: string
+          enum: [scheduled, ongoing, completed, cancelled, no_show]
+        video_room_id:
+          type: string
+        notes:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        doctor:
+          $ref: '#/components/schemas/Doctor'
+        child:
+          $ref: '#/components/schemas/Child'
+
+    Payment:
+      type: object
+      properties:
+        id:
+          type: string
+        appointment_id:
+          type: string
+        parent_id:
+          type: string
+        amount:
+          type: number
+        currency:
+          type: string
+        payment_method:
+          type: string
+          enum: [paystack, cinetpay]
+        transaction_id:
+          type: string
+        payment_status:
+          type: string
+          enum: [pending, completed, failed, refunded]
+        payment_gateway_response:
+          type: object
+        created_at:
+          type: string
+          format: date-time
+
+    Message:
+      type: object
+      properties:
+        id:
+          type: string
+        sender_id:
+          type: string
+        recipient_id:
+          type: string
+        appointment_id:
+          type: string
+        content:
+          type: string
+        message_type:
+          type: string
+          enum: [text, file, gif, sticker]
+        file_url:
+          type: string
+        gif_url:
+          type: string
+        read_at:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+        sender:
+          $ref: '#/components/schemas/User'
+
+tags:
+  - name: Authentication
+    description: User authentication endpoints
+  - name: Children
+    description: Child profile management
+  - name: Prediction
+    description: AI disease prediction
+  - name: Doctors
+    description: Doctor information and search
+  - name: Appointments
+    description: Medical appointments
+  - name: Payments
+    description: Payment processing
+  - name: Messages
+    description: Messaging system
+  - name: Medical Data
+    description: Symptoms and diseases information
